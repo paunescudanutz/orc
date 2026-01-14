@@ -1,0 +1,14 @@
+
+# .clang-format
+BasedOnStyle: Google # You can choose LLVM, Google, Chromium, WebKit, etc.
+ColumnLimit: 99999
+# Forces the body of an 'if', 'else if', or 'else' block to a new line,
+# even if it is a single statement without braces.
+AllowShortIfStatementsOnASingleLine: Never
+
+# Forces the body of a 'for', 'while', or 'do-while' loop to a new line,
+# even if it is a single statement without braces.
+AllowShortLoopsOnASingleLine: false
+# Disables putting short functions on a single line, 
+# forcing the body to start on a new line.
+AllowShortFunctionsOnASingleLine: None
