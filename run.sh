@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BIN_NAME="cbash"
+BIN_NAME="orc"
 BIN_PATH="bin/$BIN_NAME"
 
 ./build.sh

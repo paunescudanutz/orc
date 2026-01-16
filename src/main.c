@@ -11,6 +11,9 @@ struct termios origTermios;
 
 // #define RUN_TESTS
 
+#define LIST_WINDOWS S("tmux list-windows -F '#{window_name}'")
+#define LIST_SESSIONS S("tmux list-sessions")
+
 #define MAX_OUTPUT 8192
 #define BUFFER_NAME S("FZF_SELECTION")
 
@@ -106,7 +109,7 @@ void tmuxDeleteBuffer(Arena* arena, Str bufferName) {
   cmdRun(cmd);
 }
 
-void tmuxPopup(Arena* arena, Str source, Str tmuxBuffer) {
+void tmuxSelector(Arena* arena, Str source, Str tmuxBuffer) {
   StrArray a = strArrayInit(arena, 256);
 
   strArrayPush(&a, S("tmux popup -B -w 70% -h 70% -E "));
@@ -123,8 +126,7 @@ void tmuxPopup(Arena* arena, Str source, Str tmuxBuffer) {
   cmdRun(cmd);
 }
 
-StrArray tmuxListWindows(Arena* arena) {
-  Str cmd = S("tmux list-windows -F '#{window_name}'");
+StrArray tmuxList(Arena* arena, Str cmd) {
   Str raw = cmdOut(arena, cmd, MAX_OUTPUT);
 
   TokenArray array = createTokenArray(arena, 30);
@@ -132,26 +134,45 @@ StrArray tmuxListWindows(Arena* arena) {
   return strArrayWrap(array.strArray, array.size);
 }
 
-int main(int argc, char* argv[]) {
-  App app = {0};
-  initApp(&app);
+void gotoFile(Arena* arena) {
+  Str tokenSource = S("find ./ -type f ");
 
-  Arena* arena = app.masterArena;
+  tmuxSelector(arena, tokenSource, BUFFER_NAME);
+  Str path = tmuxReadBuffer(arena, BUFFER_NAME);
 
+  TokenArray tokens = createTokenArray(arena, 10);
+  strTokens(&tokens, path, '\n', false);
+  path = tokens.strArray[0];
+
+  StrArray activeWindows = tmuxList(arena, LIST_WINDOWS);
+
+  if (strArrayIndexOf(activeWindows, path) != -1) {
+    // tmux send-keys -t 40:0.0 :goto Space 9 Enter
+    logInfo("goto: ");
+  } else {
+    Str helixCmd = openHelix(arena, path, S("0"));
+    Str newWindowCmd = tmuxNewWindow(arena, path, helixCmd);
+    cmdRun(newWindowCmd);
+  }
+
+  tmuxDeleteBuffer(arena, BUFFER_NAME);
+}
+
+void gotoSearch(Arena* arena) {
   Str tokenSource = S("rg --line-number --color=always '' . ");
 
-  tmuxPopup(arena, tokenSource, BUFFER_NAME);
-  Str selection = tmuxReadBuffer(app.masterArena, BUFFER_NAME);
+  tmuxSelector(arena, tokenSource, BUFFER_NAME);
+  Str selection = tmuxReadBuffer(arena, BUFFER_NAME);
 
   TokenArray tokens = createTokenArray(arena, 10);
   strTokens(&tokens, selection, ':', false);
   Str path = tokens.strArray[0];
   Str line = tokens.strArray[1];
 
-  StrArray activeWindows = tmuxListWindows(app.masterArena);
+  StrArray activeWindows = tmuxList(arena, LIST_WINDOWS);
 
   if (strArrayIndexOf(activeWindows, path) != -1) {
-    // TODO: implement this
+    // tmux send-keys -t 40:0.0 :goto Space 9 Enter
     logInfo("goto: ");
   } else {
     Str helixCmd = openHelix(arena, path, line);
@@ -160,6 +181,51 @@ int main(int argc, char* argv[]) {
   }
 
   tmuxDeleteBuffer(arena, BUFFER_NAME);
+}
+
+void tmuxSwitchSessions(Arena* arena, Str sessionName) {
+  Str cmd = strJoin2(arena, S("tmux switch-client -t"), sessionName);
+
+  cmdRun(cmd);
+}
+
+void initEnv() {
+  cmdRun(S("tmux new-session -d -s debug \"helix .\""));
+  cmdRun(S("tmux new-session -s dev \"helix .\""));
+}
+
+void workWork() {
+  cmdRun(S("tmux attach-session -t dev"));
+}
+
+int main(int argc, char* argv[]) {
+  App app = {0};
+  initApp(&app);
+  Params p = {0};
+  parseParams(&p, argc, argv);
+
+  Arena* arena = app.masterArena;
+
+  // gotoSearch(arena);
+  switch (p.action) {
+    case ACTION_INIT:
+      initEnv();
+      break;
+    case ACTION_SWITCH_ENV:
+      tmuxSwitchSessions(arena, p.p1);
+      break;
+    case ACTION_WORK:
+      workWork();
+      break;
+    case ACTION_GOTO_FILE:
+      gotoFile(arena);
+      break;
+    case ACTION_GOTO_SEARCH:
+      gotoSearch(arena);
+      break;
+    default:
+      break;
+  }
 
   logInfo("Stopped!");
 
