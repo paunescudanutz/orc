@@ -20,9 +20,7 @@ void parseParams(Params* p, int argc, char* argv[]) {
       } else if (strcmp(param, "init") == 0) {
         i++;
         p->action = ACTION_INIT;
-      } else if (strcmp(param, "work") == 0) {
-        i++;
-        p->action = ACTION_WORK;
+        p->p1 = wrapStr(argv[i]);
       } else if (strcmp(param, "file") == 0) {
         i++;
         p->action = ACTION_GOTO_FILE;

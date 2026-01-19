@@ -7,6 +7,17 @@
 #include "assert.h"
 #include "logger.h"
 
+Str strJoin4(Arena* arena, Str a, Str b, Str c, Str d) {
+  StrArray arr = strArrayInit(arena, 4);
+
+  strArrayPush(&arr, a);
+  strArrayPush(&arr, b);
+  strArrayPush(&arr, c);
+  strArrayPush(&arr, d);
+
+  return strArrayArenaJoin(arena, &arr);
+}
+
 Str strJoin3(Arena* arena, Str a, Str b, Str c) {
   StrArray arr = strArrayInit(arena, 3);
 
@@ -93,9 +104,9 @@ void pushTokenArray(TokenArray* array, Str str, Vec2 pos) {
 
 int strArrayIndexOf(StrArray strArray, Str str) {
   for (int i = 0; i < strArray.size; i++) {
-    Str ignored = strArray.list[i];
+    Str currentStr = strArray.list[i];
 
-    if (strEq(str, ignored)) {
+    if (strEq(str, currentStr)) {
       return i;
     }
   }
@@ -181,8 +192,8 @@ int getNextLeftToken(TokenArray* tokens, int position) {
   return NO_TOKEN_FOUND;
 }
 
-// TODO: add an additional output parameter that will ectract a array of bitflags that indicate what kind of information a token has
-//  this param should be optional and only computed if the output value pointer is provided
+// TODO: enhance the token array object with extra arrays that gather more information about tokens such as what kind of stuff is in each one
+//  like is it punctuation, or is it numeric or alphanumeric and such, for fast querying
 void strTokens(TokenArray* result, Str str, char delimiter, bool tokenizePunctuation) {
   assert(result != NULL);
   assert(result->capacity > 0);

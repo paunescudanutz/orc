@@ -64,6 +64,7 @@ StrArray strArrayInit(Arena* arena, size_t capacity);
 StrArray strArrayWrap(Str* buffer, size_t size);
 int strArrayIndexOf(StrArray strArray, Str str);
 Str strArrayJoin(StrArray* array, char* result);
+Str strJoin4(Arena* arena, Str a, Str b, Str c, Str d);
 Str strJoin3(Arena* arena, Str a, Str b, Str c);
 Str strJoin2(Arena* arena, Str a, Str b);
 Str strArrayArenaJoin(Arena* arena, StrArray* array);

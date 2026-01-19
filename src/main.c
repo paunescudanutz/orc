@@ -1,5 +1,6 @@
 #include "main.h"
 
+#include <asm-generic/errno.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -17,6 +18,22 @@ struct termios origTermios;
 #define MAX_OUTPUT 8192
 #define BUFFER_NAME S("FZF_SELECTION")
 
+Str CWD(Arena* arena) {
+  char buf[256] = {0};
+
+  getcwd(buf, 256);
+
+  return newStr(arena, buf);
+}
+
+Str getProjectName(Arena* arena) {
+  Str cwd = CWD(arena);
+
+  TokenArray tokens = createTokenArray(arena, 10);
+  strTokens(&tokens, cwd, '/', false);
+  return tokens.strArray[tokens.size - 1];
+}
+
 void initApp(App* app) {
   initLogger();
   logInfo("Started:");
@@ -29,6 +46,7 @@ void initApp(App* app) {
 
   *app = (App){
       .masterArena = arena,
+      .projectName = getProjectName(arena),
   };
 }
 
@@ -72,6 +90,8 @@ int cmdRun(Str str) {
     return -1;
   }
 
+  logStr(str, "Command Run: ");
+
   return WEXITSTATUS(ret);
 }
 
@@ -105,7 +125,7 @@ Str tmuxReadBuffer(Arena* arena, Str bufferName) {
 }
 
 void tmuxDeleteBuffer(Arena* arena, Str bufferName) {
-  Str cmd = strJoin2(arena, S("tmux delete-buffer -b"), bufferName);
+  Str cmd = strJoin2(arena, S("tmux delete-buffer -b "), bufferName);
   cmdRun(cmd);
 }
 
@@ -158,23 +178,64 @@ void gotoFile(Arena* arena) {
   tmuxDeleteBuffer(arena, BUFFER_NAME);
 }
 
-void gotoSearch(Arena* arena) {
+void tmuxSwitchWindow(Arena* arena, Str session, Str windowId) {
+  cmdRun(strJoin4(arena, S("tmux select-window -t "), session, S(":"), windowId));
+}
+
+void editorGotoLine(Arena* arena, Str session, Str id, Str line) {
+  StrArray a = strArrayInit(arena, 256);
+
+  strArrayPush(&a, S("tmux send-keys -t "));
+  strArrayPush(&a, session);
+  strArrayPush(&a, S(":"));
+  strArrayPush(&a, id);
+  strArrayPush(&a, S(" :goto Space "));
+  strArrayPush(&a, line);
+  strArrayPush(&a, S(" Enter"));
+
+  Str cmd = strArrayArenaJoin(arena, &a);
+  cmdRun(cmd);
+}
+
+void gotoSearch(App* app) {
+  logSeparator("GOTO SEARCH");
+  Arena* arena = app->masterArena;
+
   Str tokenSource = S("rg --line-number --color=always '' . ");
 
   tmuxSelector(arena, tokenSource, BUFFER_NAME);
   Str selection = tmuxReadBuffer(arena, BUFFER_NAME);
 
-  TokenArray tokens = createTokenArray(arena, 10);
-  strTokens(&tokens, selection, ':', false);
-  Str path = tokens.strArray[0];
-  Str line = tokens.strArray[1];
+  TokenArray selectionTokens = createTokenArray(arena, 10);
+  strTokens(&selectionTokens, selection, ':', false);
+  Str path = selectionTokens.strArray[0];
+  Str line = selectionTokens.strArray[1];
 
-  StrArray activeWindows = tmuxList(arena, LIST_WINDOWS);
+  logStr(path, "Searching for: ");
+  Str listWindows = strJoin3(arena, S("tmux list-windows -t "), app->projectName, S(" -F '#{window_id} #{window_name}'"));
+  StrArray openWindows = tmuxList(arena, listWindows);
 
-  if (strArrayIndexOf(activeWindows, path) != -1) {
-    // tmux send-keys -t 40:0.0 :goto Space 9 Enter
-    logInfo("goto: ");
-  } else {
+  TokenArray windowTokens = createTokenArray(arena, 2);
+  bool windowExists = false;
+
+  for (int i = 0; i < openWindows.size; i++) {
+    windowTokens.size = 0;
+    strTokens(&windowTokens, openWindows.list[i], ' ', false);
+    Str id = windowTokens.strArray[0];
+    Str name = windowTokens.strArray[1];
+
+    if (strEq(name, path)) {
+      StrArray a = strArrayInit(arena, 4);
+
+      tmuxSwitchWindow(arena, app->projectName, id);
+      editorGotoLine(arena, app->projectName, id, line);
+
+      windowExists = true;
+      break;
+    }
+  }
+
+  if (!windowExists) {
     Str helixCmd = openHelix(arena, path, line);
     Str newWindowCmd = tmuxNewWindow(arena, path, helixCmd);
     cmdRun(newWindowCmd);
@@ -189,13 +250,20 @@ void tmuxSwitchSessions(Arena* arena, Str sessionName) {
   cmdRun(cmd);
 }
 
-void initEnv() {
-  cmdRun(S("tmux new-session -d -s debug \"helix .\""));
-  cmdRun(S("tmux new-session -s dev \"helix .\""));
-}
+void initEnv(Arena* arena, Str filePath) {
+  StrArray a = strArrayInit(arena, 256);
 
-void workWork() {
-  cmdRun(S("tmux attach-session -t dev"));
+  strArrayPush(&a, S("tmux new-session "));
+  strArrayPush(&a, S(" -s $(basename \"$PWD\")"));
+  strArrayPush(&a, S(" -n \""));
+  strArrayPush(&a, filePath);
+  strArrayPush(&a, S("\" \" "));
+  strArrayPush(&a, S("helix "));
+  strArrayPush(&a, filePath);
+  strArrayPush(&a, S("\""));
+
+  Str cmd = strArrayArenaJoin(arena, &a);
+  cmdRun(cmd);
 }
 
 int main(int argc, char* argv[]) {
@@ -206,22 +274,18 @@ int main(int argc, char* argv[]) {
 
   Arena* arena = app.masterArena;
 
-  // gotoSearch(arena);
   switch (p.action) {
     case ACTION_INIT:
-      initEnv();
+      initEnv(arena, p.p1);
       break;
     case ACTION_SWITCH_ENV:
       tmuxSwitchSessions(arena, p.p1);
-      break;
-    case ACTION_WORK:
-      workWork();
       break;
     case ACTION_GOTO_FILE:
       gotoFile(arena);
       break;
     case ACTION_GOTO_SEARCH:
-      gotoSearch(arena);
+      gotoSearch(&app);
       break;
     default:
       break;

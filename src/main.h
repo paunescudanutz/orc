@@ -13,7 +13,6 @@ extern struct termios origTermios;
 
 typedef enum Action {
   ACTION_INIT,
-  ACTION_WORK,
   ACTION_GOTO_FILE,
   ACTION_GOTO_SEARCH,
   ACTION_SWITCH_ENV,
@@ -27,6 +26,7 @@ typedef struct Params {
 
 typedef struct App {
   Arena* masterArena;
+  Str projectName;
 } App;
 
 void parseParams(Params* p, int argc, char* argv[]);
