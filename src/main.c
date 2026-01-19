@@ -166,10 +166,7 @@ void gotoFile(Arena* arena) {
 
   StrArray activeWindows = tmuxList(arena, LIST_WINDOWS);
 
-  if (strArrayIndexOf(activeWindows, path) != -1) {
-    // tmux send-keys -t 40:0.0 :goto Space 9 Enter
-    logInfo("goto: ");
-  } else {
+  if (strArrayIndexOf(activeWindows, path) == -1) {
     Str helixCmd = openHelix(arena, path, S("0"));
     Str newWindowCmd = tmuxNewWindow(arena, path, helixCmd);
     cmdRun(newWindowCmd);
