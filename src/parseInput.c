@@ -27,6 +27,10 @@ void parseParams(Params* p, int argc, char* argv[]) {
       } else if (strcmp(param, "search") == 0) {
         i++;
         p->action = ACTION_GOTO_SEARCH;
+      } else if (strcmp(param, "definition") == 0) {
+        i++;
+        p->action = ACTION_GOTO_DEFINITION;
+        // p->p1 = wrapStr(argv[i]);
       } else {
         i++;
       }

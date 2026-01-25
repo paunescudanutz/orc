@@ -357,6 +357,60 @@ Str allocStr(Arena* arena, size_t size) {
   return str;
 }
 
+// NOTE: use '\0' to denote start and end limits.
+// 'start' and 'end' cannot be both '\0' at the same time
+Str strCopyBetween(Arena* arena, Str str, char start, char end) {
+  assert(str.size > 0);
+  assert(start != '\0' || end != '\0');
+
+  int a = -1;
+  int b = str.size;
+  bool foundA = false;
+  bool foundB = false;
+
+  if (start == '\0') {
+    start = true;
+  }
+
+  if (end == '\0') {
+    end = true;
+  }
+
+  for (int i = 0; i < str.size; i++) {
+    char c = str.str[i];
+
+    if (!foundA && c == start) {
+      a = i;
+      foundA = true;
+    }
+
+    if (!foundB && c == end) {
+      b = i;
+      foundB = true;
+    }
+
+    if (foundA && foundB) {
+      break;
+    }
+  }
+
+  if ((b - 1 <= a) || b == 0 || a == str.size - 2) {
+    return (Str){
+        .size = 0,
+        .str = NULL,
+    };
+  }
+
+  size_t size = b - a - 1;
+  char* buf = arenaAlloc(arena, size);
+  memcpy(buf, str.str + a + 1, size);
+
+  return (Str){
+      .size = size,
+      .str = buf,
+  };
+}
+
 bool isBlank(Str str) {
   return str.size == 0 || str.str == NULL;
 }

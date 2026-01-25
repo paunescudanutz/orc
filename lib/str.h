@@ -50,9 +50,10 @@ Str newStr(Arena* arena, char* cStr);
 Str allocStr(Arena* arena, size_t size);
 Str copyStr(Arena* arena, Str original);
 Str sliceStr(Str src, int a, int b);
-
 void toCString(Str str, char* cStr);
+
 size_t cStringSize(char* cStr);
+
 bool strEq(Str s1, Str s2);
 bool strEqCString(Str str, char* cStr);
 bool isBlank(Str str);
@@ -71,6 +72,8 @@ Str strArrayArenaJoin(Arena* arena, StrArray* array);
 StrArray wrapStrArray(Str* stackBuffer, int size);
 void strArrayPush(StrArray* array, Str str);
 size_t strArrayTotalSize(StrArray* array);
+
+Str strCopyBetween(Arena* arena, Str str, char start, char end);
 
 TokenArray createTokenArray(Arena* arena, size_t capacity);
 // void pushTokenArray(TokenArray* array, Token token);

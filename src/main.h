@@ -14,6 +14,7 @@ extern struct termios origTermios;
 typedef enum Action {
   ACTION_INIT,
   ACTION_GOTO_FILE,
+  ACTION_GOTO_DEFINITION,
   ACTION_GOTO_SEARCH,
   ACTION_SWITCH_ENV,
   NO_ACTION,
