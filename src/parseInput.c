@@ -20,7 +20,9 @@ void parseParams(Params* p, int argc, char* argv[]) {
       } else if (strcmp(param, "init") == 0) {
         i++;
         p->action = ACTION_INIT;
-        p->p1 = wrapStr(argv[i]);
+        char* initFile = argv[i];
+        assert(initFile != NULL);
+        p->p1 = wrapStr(initFile);
       } else if (strcmp(param, "file") == 0) {
         i++;
         p->action = ACTION_GOTO_FILE;
@@ -30,7 +32,11 @@ void parseParams(Params* p, int argc, char* argv[]) {
       } else if (strcmp(param, "definition") == 0) {
         i++;
         p->action = ACTION_GOTO_DEFINITION;
-        // p->p1 = wrapStr(argv[i]);
+        // mainly used by piping into stdin
+        //  char* gotoDefinitionToken = argv[i];
+        //  assert(gotoDefinitionToken != NULL);
+        //  p->p1 = wrapStr(gotoDefinitionToken);
+        //  logStr(p->p1, "not here ");
       } else {
         i++;
       }

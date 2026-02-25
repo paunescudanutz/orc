@@ -1,11 +1,71 @@
 #include "str.h"
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
 
 #include "allocators.h"
 #include "assert.h"
 #include "logger.h"
+
+Str strTrim(Str original) {
+  int start = 0;
+  int end = original.size - 1;
+
+  for (int i = 0; i < original.size; i++) {
+    char c = original.str[i];
+
+    if (c != ' ') {
+      start = i;
+      break;
+    }
+  }
+
+  for (int i = original.size - 1; i > 0; i--) {
+    char c = original.str[i];
+
+    if (c != ' ') {
+      end = i;
+      break;
+    }
+  }
+
+  size_t size = end - start + 1;
+
+  return (Str){
+      .size = size,
+      .str = &original.str[start],
+  };
+}
+
+// Deprecated, use the one that returns a slice instead
+Str strTrimDeprecated(Arena* arena, Str str) {
+  int start = 0;
+  int end = str.size - 1;
+  bool startFound = false;
+
+  for (int i = 0; i < str.size; i++) {
+    char c = str.str[i];
+
+    if (!startFound && c != ' ') {
+      start = i;
+      startFound = true;
+    }
+
+    if (c != ' ') {
+      end = i;
+    }
+  }
+
+  size_t size = end - start + 1;
+  char* buf = arenaAlloc(arena, size);
+  memcpy(buf, str.str + start, size);
+
+  return (Str){
+      .size = size,
+      .str = buf,
+  };
+}
 
 Str strJoin4(Arena* arena, Str a, Str b, Str c, Str d) {
   StrArray arr = strArrayInit(arena, 4);
@@ -121,6 +181,7 @@ StrArray wrapStrArray(Str* stackBuffer, int capacity) {
       .list = stackBuffer,
   };
 }
+
 StrArray strArrayInit(Arena* arena, size_t capacity) {
   return (StrArray){
       .capacity = capacity,
@@ -130,13 +191,17 @@ StrArray strArrayInit(Arena* arena, size_t capacity) {
   };
 }
 
-TokenArray createTokenArray(Arena* arena, size_t capacity) {
-  return (TokenArray){
+TokenArray* createTokenArray(Arena* arena, size_t capacity) {
+  TokenArray* result = arenaAlloc(arena, sizeof(TokenArray));
+
+  *result = (TokenArray){
       .capacity = capacity,
       .size = 0,
       .strArray = arenaAlloc(arena, sizeof(Str) * capacity),
       .posArray = arenaAlloc(arena, sizeof(Vec2) * capacity),
   };
+
+  return result;
 }
 
 int getNextRightToken(TokenArray* tokens, int position) {
@@ -192,17 +257,39 @@ int getNextLeftToken(TokenArray* tokens, int position) {
   return NO_TOKEN_FOUND;
 }
 
+TokenArray* strTokenize(Arena* arena, int capacity, Str str, char delimiter, SplitSpec* spec) {
+  TokenArray* tokens = createTokenArray(arena, capacity);
+  strTokens(tokens, str, delimiter, spec);
+  return tokens;
+}
+
 // TODO: enhance the token array object with extra arrays that gather more information about tokens such as what kind of stuff is in each one
 //  like is it punctuation, or is it numeric or alphanumeric and such, for fast querying
-void strTokens(TokenArray* result, Str str, char delimiter, bool tokenizePunctuation) {
+void strTokens(TokenArray* result, Str str, char delimiter, SplitSpec* spec) {
   assert(result != NULL);
   assert(result->capacity > 0);
-  assert(result->size == 0);
   assert(str.size > 0);
+
+  bool tokenizePunctuation = false;
+  s32 splitLimit = -1;
+  char stopChar = -1;
+
+  if (spec != NULL) {
+    tokenizePunctuation = spec->tokenizePunctuation;
+    splitLimit = spec->splitLimit;
+    stopChar = spec->stopAtFirstOccurance;
+  }
+
+  if (result->size > 0) {
+    // logWarn("Token array is not empty, contents will be overwritten");
+    result->size = 0;
+  }
 
   int i = 0;
   int start = 0;
   int end = 0;
+
+  s32 splitCount = 0;
 
   while (true) {
     if (i == str.size) {
@@ -210,6 +297,11 @@ void strTokens(TokenArray* result, Str str, char delimiter, bool tokenizePunctua
     }
 
     char c = str.str[i];
+
+    if (stopChar != -1 && c == stopChar) {
+      pushTokenArray(result, sliceStr(str, start, end), (Vec2){start, end});
+      break;
+    }
 
     if (tokenizePunctuation && (c == '/' || c == '*' || c == '&' || c == '#' || c == '!' || c == '+' || c == '-' || c == '>' || c == '<' || c == ')' || c == '(' || c == ']' || c == '[' || c == '}' || c == '{' || c == ',' || c == '.' || c == '=' || c == ';' || c == '(' || c == ')')) {
       if (start < end) {
@@ -223,7 +315,9 @@ void strTokens(TokenArray* result, Str str, char delimiter, bool tokenizePunctua
 
       start = i + 1;
       end = start;
-    } else if (c == delimiter) {
+    } else if (c == delimiter && (splitLimit == -1 || (splitLimit != -1 && splitCount < splitLimit))) {
+      splitCount++;
+      // logInfo("asd: %u", splitCount);
       if (start < end) {
         pushTokenArray(result, sliceStr(str, start, end), (Vec2){start, end - 1});
       }

@@ -2,6 +2,15 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+typedef unsigned int u32;
+typedef unsigned long int u64;
+typedef unsigned char u8;
+typedef int s32;
+typedef long int s64;
+typedef char s8;
+typedef float f32;
+typedef double f64;
+
 typedef union Vec3 {
   int array[3];
   struct {

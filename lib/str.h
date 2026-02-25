@@ -40,6 +40,15 @@ typedef struct TokenArray {
   size_t capacity;
 } TokenArray;
 
+typedef struct SplitSpec {
+  bool tokenizePunctuation;  // consider punctuation sings as separate tokens
+  // TODO: implement sometime
+  bool reversedOrder;  // split from last char to first
+  u32 splitLimit;      // will split first N delimiters, put the rest into single slice. Values below 0 are considered infinity
+  char stopAtFirstOccurance;    // will stop at first occurance of this character. Values below 0 are considered infinity
+
+} SplitSpec;
+
 #define toStackStr(str, cStr) \
   char cStr[(str).size + 1];  \
   toCString((str), cStr)
@@ -72,13 +81,16 @@ Str strArrayArenaJoin(Arena* arena, StrArray* array);
 StrArray wrapStrArray(Str* stackBuffer, int size);
 void strArrayPush(StrArray* array, Str str);
 size_t strArrayTotalSize(StrArray* array);
+Str strTrim(Str str);
 
 Str strCopyBetween(Arena* arena, Str str, char start, char end);
 
-TokenArray createTokenArray(Arena* arena, size_t capacity);
+TokenArray* createTokenArray(Arena* arena, size_t capacity);
 // void pushTokenArray(TokenArray* array, Token token);
 void pushTokenArray(TokenArray* array, Str str, Vec2 pos);
-void strTokens(TokenArray* result, Str str, char delimiter, bool tokenizePunctuatuion);
+// void strTokens(TokenArray* result, Str str, char delimiter, bool tokenizePunctuatuion);
+void strTokens(TokenArray* result, Str str, char delimiter, SplitSpec* spec);
+TokenArray* strTokenize(Arena* arena, int capacity, Str str, char delimiter, SplitSpec* spec);
 Vec2 getTokenPos(Str token, Str str);
 int getNextRightToken(TokenArray* tokens, int index);
 int getNextLeftToken(TokenArray* tokens, int index);
