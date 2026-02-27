@@ -8,6 +8,70 @@
 #include "assert.h"
 #include "logger.h"
 
+bool matchUntil(MatchCursor* cursor, Str match) {
+  if (cursor->cursor != 0 && !cursor->isMatch) {
+    return false;
+  }
+
+  Str str = cursor->str;
+  u32 j = 0;
+  bool potentialMatch = false;
+
+  for (u32 i = cursor->cursor; i < str.size; i++) {
+    char c = str.str[i];
+
+    if (c == match.str[j]) {
+      potentialMatch = true;
+      j++;
+
+      if (potentialMatch && j == match.size) {
+        cursor->isMatch = true;
+        cursor->cursor = i + 1;
+        return true;
+      }
+    } else {
+      potentialMatch = true;
+      j = 0;
+    }
+  }
+
+  cursor->isMatch = false;
+  return false;
+}
+
+bool matchExact(MatchCursor* cursor, Str match) {
+  if (cursor->cursor != 0 && !cursor->isMatch) {
+    return false;
+  }
+
+  u32 expectedEnd = cursor->cursor + match.size;
+  Str slice = sliceStr(cursor->str, cursor->cursor, expectedEnd);
+
+  if (strEq(slice, match)) {
+    cursor->isMatch = true;
+    cursor->cursor = expectedEnd;
+    return true;
+  }
+
+  cursor->isMatch = false;
+  return false;
+}
+
+void matchAny(MatchCursor* cursor, char expected) {
+  if (cursor->cursor != 0 && !cursor->isMatch) {
+    return;
+  }
+
+  for (u32 i = cursor->cursor; i < cursor->str.size; i++) {
+    char c = cursor->str.str[i];
+
+    if (c != expected) {
+      cursor->cursor = i;
+      return;
+    }
+  }
+}
+
 Str strTrim(Str original) {
   int start = 0;
   int end = original.size - 1;

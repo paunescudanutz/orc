@@ -26,6 +26,12 @@ typedef enum CharFilter {
   SYMBOLS,
 } CharFilter;
 
+typedef struct MatchCursor {
+  Str str;
+  u32 cursor;
+  bool isMatch;
+} MatchCursor;
+
 typedef struct StrArray {
   Str* list;
   size_t size;
@@ -43,9 +49,9 @@ typedef struct TokenArray {
 typedef struct SplitSpec {
   bool tokenizePunctuation;  // consider punctuation sings as separate tokens
   // TODO: implement sometime
-  bool reversedOrder;  // split from last char to first
-  u32 splitLimit;      // will split first N delimiters, put the rest into single slice. Values below 0 are considered infinity
-  char stopAtFirstOccurance;    // will stop at first occurance of this character. Values below 0 are considered infinity
+  bool reversedOrder;         // split from last char to first
+  u32 splitLimit;             // will split first N delimiters, put the rest into single slice. Values below 0 are considered infinity
+  char stopAtFirstOccurance;  // will stop at first occurance of this character. Values below 0 are considered infinity
 
 } SplitSpec;
 
@@ -94,3 +100,7 @@ TokenArray* strTokenize(Arena* arena, int capacity, Str str, char delimiter, Spl
 Vec2 getTokenPos(Str token, Str str);
 int getNextRightToken(TokenArray* tokens, int index);
 int getNextLeftToken(TokenArray* tokens, int index);
+
+bool matchUntil(MatchCursor* cursor, Str match);
+bool matchExact(MatchCursor* cursor, Str match);
+void matchAny(MatchCursor* cursor, char expected);

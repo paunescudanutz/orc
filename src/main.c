@@ -239,34 +239,36 @@ void switchWindows(App* app, Str path, Str line, Str col) {
   }
 }
 
-bool isFunctionDefinition(TokenArray* tokens) {
-  size_t n = tokens->size - 1;
-  Str* strings = tokens->strArray;
+bool isFunctionDefinition(Str str, Str searchToken) {
+  MatchCursor cursor = {.cursor = 0, .isMatch = false, .str = str};
 
-  if (strEq(strings[n - 1], S(")")) && strEq(strings[n], S("{"))) {
-    logDebug("Function definition found");
-    return true;
-  }
+  matchUntil(&cursor, S(" "));
+  matchAny(&cursor, ' ');
+  matchExact(&cursor, searchToken);
+  matchAny(&cursor, ' ');
+  matchExact(&cursor, S("("));
+  matchUntil(&cursor, S(")"));
+  matchAny(&cursor, ' ');
+  matchExact(&cursor, S("{"));
 
-  return false;
+  return cursor.isMatch;
 }
 
-bool isMacroDefinition(TokenArray* tokens, Str token) {
-  Str* s = tokens->strArray;
+bool isMacroDefinition(Str str, Str token) {
+  MatchCursor cursor = {.cursor = 0, .isMatch = false, .str = str};
 
-  if (strEq(s[0], S("#")) && strEq(s[1], S("define")) && strEq(s[2], token)) {
-    logDebug("Macro definition found");
-    return true;
-  }
+  matchExact(&cursor, S("#define"));
+  matchAny(&cursor, ' ');
+  matchExact(&cursor, token);
 
-  return false;
+  return cursor.isMatch;
 }
 
-void gotoDefinition(App* app, Str token) {
+void gotoDefinition(App* app, Str searchToken) {
   Arena* arena = app->masterArena;
 
   // TODO: not sure if the dot (.) is what i want here, maybe check later
-  Str cmd = strJoin3(arena, S("rg -w "), token, S(" --vimgrep ."));
+  Str cmd = strJoin3(arena, S("rg -w "), searchToken, S(" --vimgrep ."));
   toStackStr(cmd, cStr);
   logStr(cmd, "Executing goto-definition pipe read: ");
 
@@ -285,7 +287,6 @@ void gotoDefinition(App* app, Str token) {
   TokenArray* splitSample = createTokenArray(arena, 400);
 
   while (fgets(buf, n, fp)) {
-    // memset(buf, '')
     Str rawLine = wrapStrN(buf, n);
     strTokens(tokens, rawLine, ':', &VIM_PATH_SPLIT);
 
@@ -295,7 +296,7 @@ void gotoDefinition(App* app, Str token) {
     Str sample = strTrim(tokens->strArray[3]);
 
     strTokens(splitSample, sample, ' ', &PUNCTUATION_SPLIT);
-    if (isFunctionDefinition(splitSample) || isMacroDefinition(splitSample, token)) {
+    if (isFunctionDefinition(sample, searchToken) || isMacroDefinition(sample, searchToken)) {
       logStr(path, "path: ");
       logStr(row, "row: ");
       logStr(col, "col: ");

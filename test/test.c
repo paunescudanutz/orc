@@ -11,6 +11,7 @@ void splitLimitTest();
 void wrapString();
 void strTrimTest();
 void stopAtCharTest();
+void matchTest();
 
 void runTests() {
   logSeparator("Running Tests Start");
@@ -19,8 +20,28 @@ void runTests() {
   TEST(wrapString);
   TEST(strTrimTest);
   TEST(stopAtCharTest);
+  TEST(matchTest);
 
   logSeparator("Running Tests Ended");
+}
+
+void matchTest() {
+  Str s = S("lorem ipsum dolor   sit amet");
+  MatchCursor cursor = {
+      .cursor = 0,
+      .isMatch = false,
+      .str = s,
+  };
+
+  bool res = matchUntil(&cursor, S("dolor"));
+  assert(cursor.isMatch == true);
+  assert(res == true);
+  assert(cursor.cursor == 17);
+  matchAny(&cursor, ' ');
+  res = matchExact(&cursor, S("sit"));
+  assert(cursor.isMatch == true);
+  assert(res == true);
+  assert(cursor.cursor == 23);
 }
 
 void wrapString() {
